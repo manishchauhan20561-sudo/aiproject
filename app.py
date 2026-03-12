@@ -70,7 +70,7 @@ if st.button("🚀 Start Robot"):
         repulsive = np.array([0.0, 0.0])
         for obs in obstacles:
             dist = np.linalg.norm(robot - obs)
-            if dist < 2.5:
+            if dist < 3.5:
                 direction = robot - obs
                 direction = direction / np.linalg.norm(direction)
                 repulsive += direction * (1 / dist)
