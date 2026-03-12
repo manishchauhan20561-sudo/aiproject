@@ -25,29 +25,6 @@ for i in range(num_obs):
     y = st.sidebar.number_input(f"Obstacle {i+1} Y", value=float(i+4), key=f"y{i}")
     obstacles.append(np.array([x, y]))
 
-# Obstacle radius (smaller)
-OBSTACLE_RADIUS = 0.6  # reduce from 1.2 to 0.6
-
-# Show Reference Graph
-st.subheader("Reference Map (Obstacles & Goal)")
-fig_ref, ax_ref = plt.subplots(figsize=(6,6))
-
-# Plot obstacles
-for obs in obstacles:
-    circle = plt.Circle(obs, OBSTACLE_RADIUS, color="orange", alpha=0.3)
-    ax_ref.add_patch(circle)
-    ax_ref.scatter(obs[0], obs[1], marker='x', s=100, color="black")
-
-# Plot goal
-ax_ref.scatter(goal[0], goal[1], marker='*', s=300, color="green", label="Goal")
-
-ax_ref.set_xlim(-1,12)
-ax_ref.set_ylim(-1,12)
-ax_ref.grid(True)
-ax_ref.set_title("Reference Map")
-ax_ref.legend()
-st.pyplot(fig_ref)
-
 # Start robot button
 if st.button("🚀 Start Robot"):
 
@@ -90,9 +67,9 @@ if st.button("🚀 Start Robot"):
         ax.scatter(goal[0], goal[1], marker='*', s=300, color="green", label="Goal")
 
         for obs in obstacles:
-            circle = plt.Circle(obs, OBSTACLE_RADIUS, color="orange", alpha=0.3)
+            circle = plt.Circle(obs, 1.2, color="orange", alpha=0.3)
             ax.add_patch(circle)
-            ax.scatter(obs[0], obs[1], marker='x', s=100, color="black")
+            ax.scatter(obs[0], obs[1], marker='x', s=150, color="black")
 
         ax.set_xlim(-1, 12)
         ax.set_ylim(-1, 12)
