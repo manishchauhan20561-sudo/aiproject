@@ -10,90 +10,68 @@ st.title("🤖 Autonomous Robot Navigation with Obstacles")
 # Sidebar controls
 st.sidebar.header("Settings")
 
-# Number of obstacles
 num_obs = st.sidebar.slider("Number of Obstacles", 1, 6, 3)
 
-# Goal coordinates
 goal_x = st.sidebar.number_input("Goal X", value=10.0)
 goal_y = st.sidebar.number_input("Goal Y", value=10.0)
 
 goal = np.array([goal_x, goal_y])
 
-# Obstacle coordinates
 st.sidebar.subheader("Obstacle Coordinates")
 
 obstacles = []
 
 for i in range(num_obs):
-
     x = st.sidebar.number_input(f"Obstacle {i+1} X", value=float(i+3), key=f"x{i}")
     y = st.sidebar.number_input(f"Obstacle {i+1} Y", value=float(i+4), key=f"y{i}")
-
     obstacles.append(np.array([x,y]))
 
-# Obstacle radius
 OBSTACLE_RADIUS = 0.6
 
-# -----------------------------
-# REFERENCE MAP
-# -----------------------------
+# -------- Reference Map --------
 
-st.subheader("Reference Map")
+st.subheader("Environment Map")
 
 fig_ref, ax_ref = plt.subplots(figsize=(6,6))
 
-# Obstacles
 for obs in obstacles:
-
     circle = plt.Circle(obs, OBSTACLE_RADIUS, color="orange", alpha=0.3)
     ax_ref.add_patch(circle)
-
     ax_ref.scatter(obs[0], obs[1], marker='x', s=100, color="black")
 
-# Goal
 ax_ref.scatter(goal[0], goal[1], marker='*', s=300, color="green", label="Goal")
-
-# Start
 ax_ref.scatter(0,0,color="red",s=120,label="Start")
 
 ax_ref.set_xlim(-1,12)
 ax_ref.set_ylim(-1,12)
-
 ax_ref.grid(True)
-ax_ref.set_title("Environment Map")
 ax_ref.legend()
 
 st.pyplot(fig_ref)
 
-# -----------------------------
-# START ROBOT
-# -----------------------------
+# -------- Robot Simulation --------
 
 if st.button("🚀 Start Robot"):
 
-    start = np.array([0.0,0.0])
-    robot = start.copy()
+    robot = np.array([0.0,0.0])
 
-    path_x = [robot[0]]
-    path_y = [robot[1]]
+    path_x=[robot[0]]
+    path_y=[robot[1]]
 
     plot_area = st.empty()
 
-    step = 0
-
+    step=0
     prev_robot = robot.copy()
-    stuck_counter = 0
 
     while np.linalg.norm(robot-goal) > 0.3:
 
         step += 1
 
-        # Attractive force
         goal_force = goal - robot
         goal_force = goal_force / np.linalg.norm(goal_force)
 
-        # Repulsive force
         repulsive = np.array([0.0,0.0])
+        tangential = np.array([0.0,0.0])
 
         for obs in obstacles:
 
@@ -106,55 +84,47 @@ if st.button("🚀 Start Robot"):
 
                 repulsive += direction*(1/dist)
 
-        move = goal_force + repulsive
+                # tangential sideways force
+                tangent = np.array([-direction[1], direction[0]])
+                tangential += tangent * 0.3
+
+        move = goal_force + repulsive + tangential
         move = move / np.linalg.norm(move)
 
-        robot = robot + move*0.3
+        robot = robot + move*0.35
 
-        # -------- Local minima fix --------
+        # escape if stuck
         if np.linalg.norm(robot - prev_robot) < 0.01:
-            stuck_counter += 1
-        else:
-            stuck_counter = 0
-
-        if stuck_counter > 4:
-            robot += np.random.uniform(-0.5,0.5,2)
-            stuck_counter = 0
-        # ----------------------------------
+            robot += np.random.uniform(-0.4,0.4,2)
 
         prev_robot = robot.copy()
 
         path_x.append(robot[0])
         path_y.append(robot[1])
 
-        # Plot simulation
         fig, ax = plt.subplots(figsize=(6,6))
 
-        ax.plot(path_x, path_y, linewidth=2, label="Robot Path")
+        ax.plot(path_x,path_y,label="Robot Path",linewidth=2)
 
-        ax.scatter(robot[0], robot[1], s=120, color="red", label="Robot")
+        ax.scatter(robot[0],robot[1],color="red",s=120,label="Robot")
 
-        ax.scatter(goal[0], goal[1], marker='*', s=300, color="green", label="Goal")
+        ax.scatter(goal[0],goal[1],marker="*",color="green",s=300,label="Goal")
 
         for obs in obstacles:
-
-            circle = plt.Circle(obs, OBSTACLE_RADIUS, color="orange", alpha=0.3)
+            circle = plt.Circle(obs,OBSTACLE_RADIUS,color="orange",alpha=0.3)
             ax.add_patch(circle)
-
-            ax.scatter(obs[0], obs[1], marker='x', s=100, color="black")
+            ax.scatter(obs[0],obs[1],marker='x',s=100,color="black")
 
         ax.set_xlim(-1,12)
         ax.set_ylim(-1,12)
 
-        distance = np.linalg.norm(robot-goal)
-
-        ax.set_title(f"Step {step} | Distance to Goal: {distance:.2f}")
+        ax.set_title(f"Step {step} | Distance {np.linalg.norm(robot-goal):.2f}")
 
         ax.grid(True)
         ax.legend()
 
         plot_area.pyplot(fig)
 
-        time.sleep(0.4)
+        time.sleep(0.35)
 
     st.success("🎯 Goal Reached!")
