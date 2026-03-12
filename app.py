@@ -9,22 +9,25 @@ st.set_page_config(page_title="Robot Navigation", layout="wide")
 
 st.title("🤖 Autonomous Robot Navigation")
 
-# Session storage
+# Initialize obstacle storage
 if "obstacles" not in st.session_state:
     st.session_state.obstacles = []
 
 goal = np.array([10,10])
 start = np.array([0,0])
 
-st.write("Click anywhere on the map to add obstacles.")
+st.write("Click anywhere on the graph to add obstacles.")
 
-# Create interactive plot
+# -----------------------
+# INTERACTIVE CLICK GRAPH
+# -----------------------
+
 fig = go.Figure()
 
 # Obstacles
 if len(st.session_state.obstacles) > 0:
-    xs = [o[0] for o in st.session_state.obstacles]
-    ys = [o[1] for o in st.session_state.obstacles]
+    xs = [p[0] for p in st.session_state.obstacles]
+    ys = [p[1] for p in st.session_state.obstacles]
 
     fig.add_trace(go.Scatter(
         x=xs,
@@ -50,17 +53,25 @@ fig.update_layout(
     clickmode="event+select"
 )
 
-# Capture click
-clicked_points = plotly_events(fig)
+# Detect clicks
+selected_points = plotly_events(
+    fig,
+    click_event=True,
+    hover_event=False
+)
 
-if clicked_points:
-    x = clicked_points[0]["x"]
-    y = clicked_points[0]["y"]
+# Add obstacle if clicked
+if selected_points:
+    x = selected_points[0]["x"]
+    y = selected_points[0]["y"]
 
     st.session_state.obstacles.append([x,y])
     st.rerun()
 
-# Buttons
+# -----------------------
+# BUTTONS
+# -----------------------
+
 col1,col2 = st.columns(2)
 
 with col1:
@@ -71,7 +82,10 @@ with col2:
         st.session_state.obstacles=[]
         st.rerun()
 
-# Robot simulation
+# -----------------------
+# ROBOT SIMULATION
+# -----------------------
+
 if start_robot:
 
     robot = start.copy()
