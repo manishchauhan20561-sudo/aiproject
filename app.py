@@ -1,143 +1,106 @@
 import streamlit as st
 import numpy as np
-import plotly.graph_objects as go
-from streamlit_plotly_events import plotly_events
 import matplotlib.pyplot as plt
 import time
 
-st.set_page_config(page_title="Robot Navigation", layout="wide")
+st.set_page_config(page_title="Autonomous Robot Navigation", layout="wide")
+st.title("🤖 Autonomous Robot Navigation with Obstacles")
 
-st.title("🤖 Autonomous Robot Navigation")
+# Sidebar controls
+st.sidebar.header("Settings")
 
-# Initialize obstacle storage
-if "obstacles" not in st.session_state:
-    st.session_state.obstacles = []
+# Number of obstacles
+num_obs = st.sidebar.slider("Number of Obstacles", 1, 6, 3)
 
-goal = np.array([10,10])
-start = np.array([0,0])
+# Goal coordinates
+goal_x = st.sidebar.number_input("Goal X", value=10.0)
+goal_y = st.sidebar.number_input("Goal Y", value=10.0)
+goal = np.array([goal_x, goal_y])
 
-st.write("Click anywhere on the graph to add obstacles.")
+# Enter obstacle coordinates dynamically
+st.sidebar.subheader("Obstacle Coordinates")
+obstacles = []
+for i in range(num_obs):
+    x = st.sidebar.number_input(f"Obstacle {i+1} X", value=float(i+3), key=f"x{i}")
+    y = st.sidebar.number_input(f"Obstacle {i+1} Y", value=float(i+4), key=f"y{i}")
+    obstacles.append(np.array([x, y]))
 
-# -----------------------
-# INTERACTIVE CLICK GRAPH
-# -----------------------
+# Obstacle radius (smaller)
+OBSTACLE_RADIUS = 0.6  # reduce from 1.2 to 0.6
 
-fig = go.Figure()
+# Show Reference Graph
+st.subheader("Reference Map (Obstacles & Goal)")
+fig_ref, ax_ref = plt.subplots(figsize=(6,6))
 
-# Obstacles
-if len(st.session_state.obstacles) > 0:
-    xs = [p[0] for p in st.session_state.obstacles]
-    ys = [p[1] for p in st.session_state.obstacles]
+# Plot obstacles
+for obs in obstacles:
+    circle = plt.Circle(obs, OBSTACLE_RADIUS, color="orange", alpha=0.3)
+    ax_ref.add_patch(circle)
+    ax_ref.scatter(obs[0], obs[1], marker='x', s=100, color="black")
 
-    fig.add_trace(go.Scatter(
-        x=xs,
-        y=ys,
-        mode="markers",
-        marker=dict(size=12,color="orange"),
-        name="Obstacles"
-    ))
+# Plot goal
+ax_ref.scatter(goal[0], goal[1], marker='*', s=300, color="green", label="Goal")
 
-# Goal
-fig.add_trace(go.Scatter(
-    x=[goal[0]],
-    y=[goal[1]],
-    mode="markers",
-    marker=dict(size=18,color="green"),
-    name="Goal"
-))
+ax_ref.set_xlim(-1,12)
+ax_ref.set_ylim(-1,12)
+ax_ref.grid(True)
+ax_ref.set_title("Reference Map")
+ax_ref.legend()
+st.pyplot(fig_ref)
 
-fig.update_layout(
-    xaxis=dict(range=[-1,12]),
-    yaxis=dict(range=[-1,12]),
-    height=500,
-    clickmode="event+select"
-)
+# Start robot button
+if st.button("🚀 Start Robot"):
 
-# Detect clicks
-selected_points = plotly_events(
-    fig,
-    click_event=True,
-    hover_event=False
-)
-
-# Add obstacle if clicked
-if selected_points:
-    x = selected_points[0]["x"]
-    y = selected_points[0]["y"]
-
-    st.session_state.obstacles.append([x,y])
-    st.rerun()
-
-# -----------------------
-# BUTTONS
-# -----------------------
-
-col1,col2 = st.columns(2)
-
-with col1:
-    start_robot = st.button("🚀 Start Robot")
-
-with col2:
-    if st.button("🗑 Clear Obstacles"):
-        st.session_state.obstacles=[]
-        st.rerun()
-
-# -----------------------
-# ROBOT SIMULATION
-# -----------------------
-
-if start_robot:
-
+    start = np.array([0.0, 0.0])
     robot = start.copy()
-
-    path_x=[robot[0]]
-    path_y=[robot[1]]
+    path_x = [robot[0]]
+    path_y = [robot[1]]
 
     plot_area = st.empty()
+    step = 0
 
-    while np.linalg.norm(robot-goal) > 0.3:
+    while np.linalg.norm(robot - goal) > 0.3:
+        step += 1
 
+        # Attractive force to goal
         goal_force = goal - robot
         goal_force = goal_force / np.linalg.norm(goal_force)
 
-        repulsive = np.array([0.0,0.0])
-
-        for obs in st.session_state.obstacles:
-
-            obs = np.array(obs)
-            dist = np.linalg.norm(robot-obs)
-
-            if dist < 2:
+        # Repulsive force from obstacles
+        repulsive = np.array([0.0, 0.0])
+        for obs in obstacles:
+            dist = np.linalg.norm(robot - obs)
+            if dist < 2.5:
                 direction = robot - obs
                 direction = direction / np.linalg.norm(direction)
-                repulsive += direction*(1/dist)
+                repulsive += direction * (1 / dist)
 
+        # Total movement
         move = goal_force + repulsive
         move = move / np.linalg.norm(move)
-
-        robot += move*0.4
+        robot += move * 0.4
 
         path_x.append(robot[0])
         path_y.append(robot[1])
 
-        fig2,ax = plt.subplots(figsize=(6,6))
+        # Plotting
+        fig, ax = plt.subplots(figsize=(6,6))
+        ax.plot(path_x, path_y, label="Robot Path", color="blue", linewidth=2)
+        ax.scatter(robot[0], robot[1], s=120, color="red", label="Robot")
+        ax.scatter(goal[0], goal[1], marker='*', s=300, color="green", label="Goal")
 
-        ax.plot(path_x,path_y,label="Path")
-
-        ax.scatter(robot[0],robot[1],s=120,color="red",label="Robot")
-
-        ax.scatter(goal[0],goal[1],marker='*',s=250,color="green",label="Goal")
-
-        for obs in st.session_state.obstacles:
-            circle = plt.Circle(obs,0.5,alpha=0.3,color="orange")
+        for obs in obstacles:
+            circle = plt.Circle(obs, OBSTACLE_RADIUS, color="orange", alpha=0.3)
             ax.add_patch(circle)
+            ax.scatter(obs[0], obs[1], marker='x', s=100, color="black")
 
-        ax.set_xlim(-1,12)
-        ax.set_ylim(-1,12)
-        ax.grid()
+        ax.set_xlim(-1, 12)
+        ax.set_ylim(-1, 12)
+        ax.set_title(f"Step {step} | Distance to Goal: {np.linalg.norm(robot-goal):.2f}")
+        ax.grid(True)
+        ax.legend()
 
-        plot_area.pyplot(fig2)
-
+        plot_area.pyplot(fig)
         time.sleep(0.2)
 
-    st.success("Goal Reached 🎯")
+    st.success("🎯 Goal Reached!")
