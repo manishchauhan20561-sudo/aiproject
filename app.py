@@ -36,10 +36,14 @@ st.subheader("Environment Map")
 
 fig_ref, ax_ref = plt.subplots(figsize=(6,6))
 
+# Obstacles (only cross markers)
 for obs in obstacles:
     ax_ref.scatter(obs[0], obs[1], marker='x', s=150, color="black")
 
+# Goal
 ax_ref.scatter(goal[0], goal[1], marker='*', s=300, color="green", label="Goal")
+
+# Start
 ax_ref.scatter(0, 0, color="red", s=120, label="Start")
 
 ax_ref.set_xlim(-1, 12)
@@ -64,8 +68,6 @@ if st.button("🚀 Start Robot"):
     plot_area = st.empty()
 
     step = 0
-
-    prev_positions = []
 
     while np.linalg.norm(robot - goal) > 0.3:
 
@@ -94,37 +96,6 @@ if st.button("🚀 Start Robot"):
 
         robot = robot + move * 0.35
 
-        # ------------------------------
-        # Oscillation Detection
-        # ------------------------------
-
-        prev_positions.append(robot.copy())
-
-        if len(prev_positions) > 6:
-            prev_positions.pop(0)
-
-        if len(prev_positions) == 6:
-
-            d1 = np.linalg.norm(prev_positions[0] - prev_positions[3])
-            d2 = np.linalg.norm(prev_positions[1] - prev_positions[4])
-
-            if d1 < 0.1 and d2 < 0.1:
-
-                # Move backward
-                robot -= move * 0.7
-
-                # Move sideways
-                side = np.array([-move[1], move[0]])
-
-                if np.random.rand() > 0.5:
-                    robot += side * 0.8
-                else:
-                    robot -= side * 0.8
-
-                prev_positions = []
-
-        # ------------------------------
-
         path_x.append(robot[0])
         path_y.append(robot[1])
 
@@ -137,6 +108,7 @@ if st.button("🚀 Start Robot"):
 
         ax.scatter(goal[0], goal[1], marker='*', s=300, color="green", label="Goal")
 
+        # Obstacles (only crosses)
         for obs in obstacles:
             ax.scatter(obs[0], obs[1], marker='x', s=150, color="black")
 
