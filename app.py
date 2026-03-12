@@ -2,8 +2,9 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+from matplotlib.patches import Circle
 
-st.title("Autonomous Robot Navigation with Obstacle Avoidance")
+st.title("Autonomous Robot Navigation")
 
 # number of obstacles
 num_obstacles = st.slider("Select number of obstacles", 1, 6, 3)
@@ -26,7 +27,7 @@ goal = np.array([10.0, 10.0])
 
 plot_area = st.empty()
 
-# -------- show graph BEFORE robot starts --------
+# ---------- Show Environment Before Start ----------
 
 fig, ax = plt.subplots()
 
@@ -34,15 +35,18 @@ ax.set_xlim(0,10)
 ax.set_ylim(0,10)
 ax.set_title("Robot Environment")
 
+# obstacles
 for obs in obstacles:
-    ax.scatter(obs[0], obs[1], s=200)
+    obstacle = Circle((obs[0], obs[1]), 0.8)
+    ax.add_patch(obstacle)
 
+# start & goal
 ax.scatter(start[0], start[1], s=200)
 ax.scatter(goal[0], goal[1], s=200)
 
 plot_area.pyplot(fig)
 
-# -------- start robot --------
+# ---------- Start Robot ----------
 
 if st.button("Start Robot"):
 
@@ -56,7 +60,7 @@ if st.button("Start Robot"):
         # obstacle avoidance
         for obs in obstacles:
 
-            if np.linalg.norm(position - obs) < 1.5:
+            if np.linalg.norm(position - obs) < 2:
 
                 avoid = position - obs
                 avoid = avoid / np.linalg.norm(avoid)
@@ -72,16 +76,25 @@ if st.button("Start Robot"):
         ax.set_xlim(0,10)
         ax.set_ylim(0,10)
 
+        # obstacles
         for obs in obstacles:
-            ax.scatter(obs[0], obs[1], s=200)
+            obstacle = Circle((obs[0], obs[1]), 0.8)
+            ax.add_patch(obstacle)
 
+        # start & goal
         ax.scatter(start[0], start[1], s=200)
         ax.scatter(goal[0], goal[1], s=200)
 
-        ax.scatter(position[0], position[1], s=250)
+        # robot body
+        robot = Circle((position[0], position[1]), 0.2)
+        ax.add_patch(robot)
+
+        # robot front sensor
+        front = position + direction * 0.35
+        ax.scatter(front[0], front[1], s=40)
 
         plot_area.pyplot(fig)
 
-        time.sleep(0.4)
+        time.sleep(0.3)
 
     st.success("Robot reached the goal!")
