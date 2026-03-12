@@ -3,16 +3,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 
-st.title("Autonomous Robot Navigation")
+st.title("Autonomous Robot Navigation with Obstacle Avoidance")
 
-# Number of obstacles
+# number of obstacles
 num_obstacles = st.slider("Select number of obstacles", 1, 6, 3)
 
 obstacles = []
 
 st.write("Enter obstacle coordinates")
 
-# Input obstacle coordinates
 for i in range(num_obstacles):
 
     col1, col2 = st.columns(2)
@@ -22,43 +21,67 @@ for i in range(num_obstacles):
 
     obstacles.append(np.array([x, y]))
 
-# Start robot button
-start_robot = st.button("Start Robot")
+start = np.array([0.0, 0.0])
+goal = np.array([10.0, 10.0])
 
-plot = st.empty()
+plot_area = st.empty()
 
-if start_robot:
+# -------- show graph BEFORE robot starts --------
 
-    start = np.array([0.0, 0.0])
-    goal = np.array([10.0, 10.0])
+fig, ax = plt.subplots()
+
+ax.set_xlim(0,10)
+ax.set_ylim(0,10)
+ax.set_title("Robot Environment")
+
+for obs in obstacles:
+    ax.scatter(obs[0], obs[1], s=200)
+
+ax.scatter(start[0], start[1], s=200)
+ax.scatter(goal[0], goal[1], s=200)
+
+plot_area.pyplot(fig)
+
+# -------- start robot --------
+
+if st.button("Start Robot"):
+
     position = start.copy()
 
-    while np.linalg.norm(goal - position) > 0.3:
+    while np.linalg.norm(goal - position) > 0.4:
 
         direction = goal - position
         direction = direction / np.linalg.norm(direction)
 
-        position = position + direction * 0.5
+        # obstacle avoidance
+        for obs in obstacles:
 
-        # Plot
+            if np.linalg.norm(position - obs) < 1.5:
+
+                avoid = position - obs
+                avoid = avoid / np.linalg.norm(avoid)
+
+                direction = direction + avoid
+
+        direction = direction / np.linalg.norm(direction)
+
+        position = position + direction * 0.4
+
         fig, ax = plt.subplots()
 
         ax.set_xlim(0,10)
         ax.set_ylim(0,10)
 
-        # obstacles
         for obs in obstacles:
-            ax.scatter(obs[0], obs[1], marker='s', s=200)
+            ax.scatter(obs[0], obs[1], s=200)
 
-        # start & goal
         ax.scatter(start[0], start[1], s=200)
         ax.scatter(goal[0], goal[1], s=200)
 
-        # robot
-        ax.scatter(position[0], position[1], s=200)
+        ax.scatter(position[0], position[1], s=250)
 
-        plot.pyplot(fig)
+        plot_area.pyplot(fig)
 
         time.sleep(0.4)
 
-    st.success("Robot reached goal!")
+    st.success("Robot reached the goal!")
