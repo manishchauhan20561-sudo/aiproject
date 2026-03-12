@@ -17,7 +17,7 @@ goal_x = st.sidebar.number_input("Goal X", value=10.0)
 goal_y = st.sidebar.number_input("Goal Y", value=10.0)
 goal = np.array([goal_x, goal_y])
 
-# Enter obstacle coordinates dynamically
+# Enter obstacle coordinates
 st.sidebar.subheader("Obstacle Coordinates")
 obstacles = []
 for i in range(num_obs):
@@ -26,20 +26,18 @@ for i in range(num_obs):
     obstacles.append(np.array([x, y]))
 
 # Obstacle radius
-OBSTACLE_RADIUS = 0.6
+OBSTACLE_RADIUS = 0.5
 
-# Show Reference Graph
+# Reference map
 st.subheader("Reference Map (Obstacles & Goal)")
 fig_ref, ax_ref = plt.subplots(figsize=(6,6))
 
-# Plot obstacles
 for idx, obs in enumerate(obstacles):
-    circle = plt.Circle(obs, OBSTACLE_RADIUS, color="orange", alpha=0.3)
+    circle = plt.Circle(obs, OBSTACLE_RADIUS, color="orange", alpha=0.4)
     ax_ref.add_patch(circle)
     ax_ref.scatter(obs[0], obs[1], marker='x', s=100, color="black")
-    ax_ref.text(obs[0]+0.2, obs[1]+0.2, f"O{idx+1}", fontsize=10)
+    ax_ref.text(obs[0]+0.2, obs[1]+0.2, f"O{idx+1}")
 
-# Plot goal
 ax_ref.scatter(goal[0], goal[1], marker='*', s=300, color="green", label="Goal")
 
 ax_ref.set_xlim(-1,12)
@@ -47,20 +45,24 @@ ax_ref.set_ylim(-1,12)
 ax_ref.grid(True)
 ax_ref.set_title("Reference Map")
 ax_ref.legend()
+
 st.pyplot(fig_ref)
 
-# Start robot button
+# Start robot
 if st.button("🚀 Start Robot"):
 
     start = np.array([0.0, 0.0])
     robot = start.copy()
+
     path_x = [robot[0]]
     path_y = [robot[1]]
 
     plot_area = st.empty()
     step = 0
+    MAX_STEPS = 400
 
-    while np.linalg.norm(robot - goal) > 0.3:
+    while np.linalg.norm(robot - goal) > 0.3 and step < MAX_STEPS:
+
         step += 1
 
         # Attractive force to goal
@@ -71,47 +73,54 @@ if st.button("🚀 Start Robot"):
         repulsive = np.array([0.0, 0.0])
         for obs in obstacles:
             dist = np.linalg.norm(robot - obs)
+
             if dist < 2.5:
                 direction = robot - obs
                 direction = direction / np.linalg.norm(direction)
-                repulsive += direction * (3.0 / dist**2)  # stronger push
+                repulsive += direction * (1.2 / dist**2)
 
         # Total movement
         move = goal_force + repulsive
 
-        # Add small random perturbation to escape local minima
-        noise = np.random.uniform(-0.05, 0.05, size=2)
+        # Small random noise to avoid local minima
+        noise = np.random.uniform(-0.02,0.02,2)
         move = move + noise
 
-        # Check if movement is too small (stuck), push toward goal
-        if np.linalg.norm(move) < 0.01:
-            move = goal - robot
-
         move = move / np.linalg.norm(move)
-        robot += move * 0.2  # smooth step
+
+        # Smooth movement
+        robot += move * 0.12
 
         path_x.append(robot[0])
         path_y.append(robot[1])
 
-        # Plotting
+        # Plot
         fig, ax = plt.subplots(figsize=(6,6))
-        ax.plot(path_x, path_y, label="Robot Path", color="blue", linewidth=2)
-        ax.scatter(robot[0], robot[1], s=80, color="red", edgecolors='black', label="Robot", zorder=5)
+
+        ax.plot(path_x, path_y, color="blue", linewidth=2, label="Robot Path")
+
+        # Robot body (circle)
+        robot_body = plt.Circle((robot[0], robot[1]), 0.18, color="red")
+        ax.add_patch(robot_body)
+
         ax.scatter(goal[0], goal[1], marker='*', s=300, color="green", label="Goal")
 
         for idx, obs in enumerate(obstacles):
-            circle = plt.Circle(obs, OBSTACLE_RADIUS, color="orange", alpha=0.3)
+            circle = plt.Circle(obs, OBSTACLE_RADIUS, color="orange", alpha=0.4)
             ax.add_patch(circle)
             ax.scatter(obs[0], obs[1], marker='x', s=100, color="black")
-            ax.text(obs[0]+0.2, obs[1]+0.2, f"O{idx+1}", fontsize=10)
 
-        ax.set_xlim(-1, 12)
-        ax.set_ylim(-1, 12)
+        ax.set_xlim(-1,12)
+        ax.set_ylim(-1,12)
+
         ax.set_title(f"Step {step} | Distance to Goal: {np.linalg.norm(robot-goal):.2f}")
         ax.grid(True)
         ax.legend()
 
         plot_area.pyplot(fig)
-        time.sleep(0.1)
+        time.sleep(0.03)
 
-    st.success("🎯 Goal Reached!")
+    if step >= MAX_STEPS:
+        st.warning("⚠ Robot stopped (path blocked or stuck).")
+    else:
+        st.success("🎯 Goal Reached!")
