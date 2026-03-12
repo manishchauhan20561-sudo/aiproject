@@ -1,41 +1,35 @@
 import streamlit as st
 import numpy as np
 import plotly.graph_objects as go
-from streamlit_plotly_events import plotly_events
 
 st.title("Autonomous Robot Navigation AI Project")
 
 start = np.array([0.0, 0.0])
 goal = np.array([10.0, 10.0])
 
-# Store obstacles
 if "obstacles" not in st.session_state:
     st.session_state.obstacles = []
 
-st.write("Click on the graph to place obstacles")
+st.write("Click on the graph to add obstacles")
 
-# Create figure
 fig = go.Figure()
 
-# Start
 fig.add_trace(go.Scatter(
     x=[start[0]],
     y=[start[1]],
     mode="markers",
-    marker=dict(size=12, color="blue"),
+    marker=dict(size=12),
     name="Start"
 ))
 
-# Goal
 fig.add_trace(go.Scatter(
     x=[goal[0]],
     y=[goal[1]],
     mode="markers",
-    marker=dict(size=16, symbol="star", color="green"),
+    marker=dict(size=15, symbol="star"),
     name="Goal"
 ))
 
-# Obstacles
 if st.session_state.obstacles:
     ox = [o[0] for o in st.session_state.obstacles]
     oy = [o[1] for o in st.session_state.obstacles]
@@ -44,7 +38,7 @@ if st.session_state.obstacles:
         x=ox,
         y=oy,
         mode="markers",
-        marker=dict(size=12, symbol="x", color="red"),
+        marker=dict(size=12, symbol="x"),
         name="Obstacles"
     ))
 
@@ -54,23 +48,15 @@ fig.update_layout(
     height=500
 )
 
-# Detect clicks
-selected_points = plotly_events(fig, click_event=True)
+clicked = st.plotly_chart(fig, use_container_width=True, on_select="rerun")
 
-# Add obstacle where clicked
-if selected_points:
-    x = selected_points[0]["x"]
-    y = selected_points[0]["y"]
+if clicked and "points" in clicked:
+    for p in clicked["points"]:
+        st.session_state.obstacles.append([p["x"], p["y"]])
 
-    st.session_state.obstacles.append([x, y])
-    st.rerun()
-
-# Clear obstacles
 if st.button("Clear Obstacles"):
     st.session_state.obstacles = []
-    st.rerun()
 
-# Start robot simulation
 if st.button("Start Robot"):
 
     robot = start.copy()
@@ -109,11 +95,7 @@ if st.button("Start Robot"):
         x=path_x,
         y=path_y,
         mode="lines",
-        line=dict(color="blue"),
         name="Robot Path"
     ))
 
-    st.plotly_chart(fig)
-
-else:
     st.plotly_chart(fig)
