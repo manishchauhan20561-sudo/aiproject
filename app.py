@@ -1,45 +1,118 @@
 import streamlit as st
 import numpy as np
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+from streamlit_plotly_events import plotly_events
 
 st.title("Autonomous Robot Navigation AI Project")
 
-# Start and Goal
-start = np.array([0,0])
-goal = np.array([10,10])
+start = np.array([0.0,0.0])
+goal = np.array([10.0,10.0])
 
-st.subheader("Robot Environment Setup")
+# store obstacles
+if "obstacles" not in st.session_state:
+    st.session_state.obstacles = []
 
-# Choose number of obstacles
-num_obstacles = st.slider("Select number of obstacles", 1, 6, 3)
+st.write("Click on the graph to place obstacles.")
 
-obstacles = []
+# create plot
+fig = go.Figure()
 
-st.write("Enter obstacle coordinates:")
+# start
+fig.add_trace(go.Scatter(
+    x=[start[0]],
+    y=[start[1]],
+    mode="markers",
+    marker=dict(size=12,color="blue"),
+    name="Start"
+))
 
-for i in range(num_obstacles):
-    col1, col2 = st.columns(2)
+# goal
+fig.add_trace(go.Scatter(
+    x=[goal[0]],
+    y=[goal[1]],
+    mode="markers",
+    marker=dict(size=16,symbol="star",color="orange"),
+    name="Goal"
+))
 
-    x = col1.number_input(f"Obstacle {i+1} X", 0, 10, key=f"x{i}")
-    y = col2.number_input(f"Obstacle {i+1} Y", 0, 10, key=f"y{i}")
+# obstacles
+if st.session_state.obstacles:
+    ox=[o[0] for o in st.session_state.obstacles]
+    oy=[o[1] for o in st.session_state.obstacles]
 
-    obstacles.append(np.array([x,y]))
+    fig.add_trace(go.Scatter(
+        x=ox,
+        y=oy,
+        mode="markers",
+        marker=dict(size=12,symbol="x",color="red"),
+        name="Obstacles"
+    ))
 
-# Plot environment
-fig, ax = plt.subplots()
+fig.update_layout(
+    xaxis=dict(range=[-1,12]),
+    yaxis=dict(range=[-1,12]),
+    height=500
+)
 
-# Start and Goal
-ax.scatter(start[0], start[1], s=120, label="Start")
-ax.scatter(goal[0], goal[1], marker="*", s=300, label="Goal")
+# detect click
+selected_points = plotly_events(fig)
 
-# Obstacles
-for obs in obstacles:
-    ax.scatter(obs[0], obs[1], marker="x", s=150, label="Obstacle")
+# add obstacle
+if selected_points:
+    x=selected_points[0]["x"]
+    y=selected_points[0]["y"]
+    st.session_state.obstacles.append([x,y])
+    st.rerun()
 
-ax.set_xlim(-1,12)
-ax.set_ylim(-1,12)
-ax.grid()
+# clear button
+if st.button("Clear Obstacles"):
+    st.session_state.obstacles=[]
+    st.rerun()
 
-ax.legend()
+# start robot button
+if st.button("Start Robot"):
 
-st.pyplot(fig)
+    robot=start.copy()
+
+    path_x=[robot[0]]
+    path_y=[robot[1]]
+
+    for i in range(200):
+
+        goal_force=goal-robot
+        goal_force=goal_force/np.linalg.norm(goal_force)
+
+        repulsive=np.array([0.0,0.0])
+
+        for obs in st.session_state.obstacles:
+
+            obs=np.array(obs)
+            dist=np.linalg.norm(robot-obs)
+
+            if dist<2:
+                direction=robot-obs
+                direction=direction/np.linalg.norm(direction)
+                repulsive+=direction*(1/dist)
+
+        move=goal_force+repulsive
+        move=move/np.linalg.norm(move)
+
+        robot=robot+move*0.4
+
+        path_x.append(robot[0])
+        path_y.append(robot[1])
+
+        if np.linalg.norm(robot-goal)<0.3:
+            break
+
+    fig.add_trace(go.Scatter(
+        x=path_x,
+        y=path_y,
+        mode="lines",
+        line=dict(color="blue"),
+        name="Robot Path"
+    ))
+
+    st.plotly_chart(fig)
+else:
+    st.plotly_chart(fig)
