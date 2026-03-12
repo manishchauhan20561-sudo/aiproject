@@ -2,99 +2,82 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 import time
-from matplotlib.patches import Circle
 
-st.title("Autonomous Robot Navigation")
+st.set_page_config(page_title="Autonomous Robot Navigation", layout="wide")
+st.title("🤖 Autonomous Robot Navigation with Obstacles")
 
-# number of obstacles
-num_obstacles = st.slider("Select number of obstacles", 1, 6, 3)
+# Sidebar controls
+st.sidebar.header("Settings")
 
+# Number of obstacles
+num_obs = st.sidebar.slider("Number of Obstacles", 1, 6, 3)
+
+# Goal coordinates
+goal_x = st.sidebar.number_input("Goal X", value=10.0)
+goal_y = st.sidebar.number_input("Goal Y", value=10.0)
+goal = np.array([goal_x, goal_y])
+
+# Enter obstacle coordinates dynamically
+st.sidebar.subheader("Obstacle Coordinates")
 obstacles = []
-
-st.write("Enter obstacle coordinates")
-
-for i in range(num_obstacles):
-
-    col1, col2 = st.columns(2)
-
-    x = col1.number_input(f"Obstacle {i+1} X", 0, 10, key=f"x{i}")
-    y = col2.number_input(f"Obstacle {i+1} Y", 0, 10, key=f"y{i}")
-
+for i in range(num_obs):
+    x = st.sidebar.number_input(f"Obstacle {i+1} X", value=float(i+3), key=f"x{i}")
+    y = st.sidebar.number_input(f"Obstacle {i+1} Y", value=float(i+4), key=f"y{i}")
     obstacles.append(np.array([x, y]))
 
-start = np.array([0.0, 0.0])
-goal = np.array([10.0, 10.0])
+# Start robot button
+if st.button("🚀 Start Robot"):
 
-plot_area = st.empty()
+    start = np.array([0.0, 0.0])
+    robot = start.copy()
+    path_x = [robot[0]]
+    path_y = [robot[1]]
 
-# ---------- Show Environment Before Start ----------
+    plot_area = st.empty()
+    step = 0
 
-fig, ax = plt.subplots()
+    while np.linalg.norm(robot - goal) > 0.3:
+        step += 1
 
-ax.set_xlim(0,10)
-ax.set_ylim(0,10)
-ax.set_title("Robot Environment")
+        # Attractive force to goal
+        goal_force = goal - robot
+        goal_force = goal_force / np.linalg.norm(goal_force)
 
-# obstacles
-for obs in obstacles:
-    obstacle = Circle((obs[0], obs[1]), 0.8)
-    ax.add_patch(obstacle)
-
-# start & goal
-ax.scatter(start[0], start[1], s=200)
-ax.scatter(goal[0], goal[1], s=200)
-
-plot_area.pyplot(fig)
-
-# ---------- Start Robot ----------
-
-if st.button("Start Robot"):
-
-    position = start.copy()
-
-    while np.linalg.norm(goal - position) > 0.4:
-
-        direction = goal - position
-        direction = direction / np.linalg.norm(direction)
-
-        # obstacle avoidance
+        # Repulsive force from obstacles
+        repulsive = np.array([0.0, 0.0])
         for obs in obstacles:
+            dist = np.linalg.norm(robot - obs)
+            if dist < 2.5:
+                direction = robot - obs
+                direction = direction / np.linalg.norm(direction)
+                repulsive += direction * (1 / dist)
 
-            if np.linalg.norm(position - obs) < 2:
+        # Total movement
+        move = goal_force + repulsive
+        move = move / np.linalg.norm(move)
+        robot += move * 0.4
 
-                avoid = position - obs
-                avoid = avoid / np.linalg.norm(avoid)
+        path_x.append(robot[0])
+        path_y.append(robot[1])
 
-                direction = direction + avoid
+        # Plotting
+        fig, ax = plt.subplots(figsize=(6,6))
+        ax.plot(path_x, path_y, label="Robot Path", color="blue", linewidth=2)
+        ax.scatter(robot[0], robot[1], s=120, color="red", label="Robot")
+        ax.scatter(goal[0], goal[1], marker='*', s=300, color="green", label="Goal")
 
-        direction = direction / np.linalg.norm(direction)
-
-        position = position + direction * 0.4
-
-        fig, ax = plt.subplots()
-
-        ax.set_xlim(0,10)
-        ax.set_ylim(0,10)
-
-        # obstacles
         for obs in obstacles:
-            obstacle = Circle((obs[0], obs[1]), 0.8)
-            ax.add_patch(obstacle)
+            circle = plt.Circle(obs, 1.2, color="orange", alpha=0.3)
+            ax.add_patch(circle)
+            ax.scatter(obs[0], obs[1], marker='x', s=150, color="black")
 
-        # start & goal
-        ax.scatter(start[0], start[1], s=200)
-        ax.scatter(goal[0], goal[1], s=200)
-
-        # robot body
-        robot = Circle((position[0], position[1]), 0.2)
-        ax.add_patch(robot)
-
-        # robot front sensor
-        front = position + direction * 0.35
-        ax.scatter(front[0], front[1], s=40)
+        ax.set_xlim(-1, 12)
+        ax.set_ylim(-1, 12)
+        ax.set_title(f"Step {step} | Distance to Goal: {np.linalg.norm(robot-goal):.2f}")
+        ax.grid(True)
+        ax.legend()
 
         plot_area.pyplot(fig)
+        time.sleep(0.2)
 
-        time.sleep(0.3)
-
-    st.success("Robot reached the goal!")
+    st.success("🎯 Goal Reached!")
