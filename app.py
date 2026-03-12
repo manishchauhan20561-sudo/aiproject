@@ -25,18 +25,19 @@ for i in range(num_obs):
     y = st.sidebar.number_input(f"Obstacle {i+1} Y", value=float(i+4), key=f"y{i}")
     obstacles.append(np.array([x, y]))
 
-# Obstacle radius (smaller)
-OBSTACLE_RADIUS = 0.6  # reduce from 1.2 to 0.6
+# Obstacle radius
+OBSTACLE_RADIUS = 0.6
 
 # Show Reference Graph
 st.subheader("Reference Map (Obstacles & Goal)")
 fig_ref, ax_ref = plt.subplots(figsize=(6,6))
 
 # Plot obstacles
-for obs in obstacles:
+for idx, obs in enumerate(obstacles):
     circle = plt.Circle(obs, OBSTACLE_RADIUS, color="orange", alpha=0.3)
     ax_ref.add_patch(circle)
     ax_ref.scatter(obs[0], obs[1], marker='x', s=100, color="black")
+    ax_ref.text(obs[0]+0.2, obs[1]+0.2, f"O{idx+1}", fontsize=10)
 
 # Plot goal
 ax_ref.scatter(goal[0], goal[1], marker='*', s=300, color="green", label="Goal")
@@ -70,15 +71,15 @@ if st.button("🚀 Start Robot"):
         repulsive = np.array([0.0, 0.0])
         for obs in obstacles:
             dist = np.linalg.norm(robot - obs)
-            if dist < 3.5:
+            if dist < 2.5:
                 direction = robot - obs
                 direction = direction / np.linalg.norm(direction)
-                repulsive += direction * (1 / dist)
+                repulsive += direction * (2.0 / dist**2)  # stronger repulsion
 
         # Total movement
         move = goal_force + repulsive
         move = move / np.linalg.norm(move)
-        robot += move * 0.4
+        robot += move * 0.2  # smaller steps for smoothness
 
         path_x.append(robot[0])
         path_y.append(robot[1])
@@ -86,13 +87,14 @@ if st.button("🚀 Start Robot"):
         # Plotting
         fig, ax = plt.subplots(figsize=(6,6))
         ax.plot(path_x, path_y, label="Robot Path", color="blue", linewidth=2)
-        ax.scatter(robot[0], robot[1], s=120, color="red", label="Robot")
+        ax.scatter(robot[0], robot[1], s=80, color="red", edgecolors='black', label="Robot", zorder=5)
         ax.scatter(goal[0], goal[1], marker='*', s=300, color="green", label="Goal")
 
-        for obs in obstacles:
+        for idx, obs in enumerate(obstacles):
             circle = plt.Circle(obs, OBSTACLE_RADIUS, color="orange", alpha=0.3)
             ax.add_patch(circle)
             ax.scatter(obs[0], obs[1], marker='x', s=100, color="black")
+            ax.text(obs[0]+0.2, obs[1]+0.2, f"O{idx+1}", fontsize=10)
 
         ax.set_xlim(-1, 12)
         ax.set_ylim(-1, 12)
@@ -101,6 +103,6 @@ if st.button("🚀 Start Robot"):
         ax.legend()
 
         plot_area.pyplot(fig)
-        time.sleep(0.2)
+        time.sleep(0.1)
 
     st.success("🎯 Goal Reached!")
