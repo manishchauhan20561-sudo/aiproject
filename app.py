@@ -1,106 +1,118 @@
 import streamlit as st
 import numpy as np
+import plotly.graph_objects as go
+from streamlit_plotly_events import plotly_events
 import matplotlib.pyplot as plt
 import time
 
-st.set_page_config(page_title="Autonomous Robot Navigation", layout="wide")
-st.title("🤖 Autonomous Robot Navigation with Obstacles")
+st.set_page_config(page_title="Robot Navigation", layout="wide")
 
-# Sidebar controls
-st.sidebar.header("Settings")
+st.title("🤖 Autonomous Robot Navigation")
 
-# Number of obstacles
-num_obs = st.sidebar.slider("Number of Obstacles", 1, 6, 3)
+# Session storage
+if "obstacles" not in st.session_state:
+    st.session_state.obstacles = []
 
-# Goal coordinates
-goal_x = st.sidebar.number_input("Goal X", value=10.0)
-goal_y = st.sidebar.number_input("Goal Y", value=10.0)
-goal = np.array([goal_x, goal_y])
+goal = np.array([10,10])
+start = np.array([0,0])
 
-# Enter obstacle coordinates dynamically
-st.sidebar.subheader("Obstacle Coordinates")
-obstacles = []
-for i in range(num_obs):
-    x = st.sidebar.number_input(f"Obstacle {i+1} X", value=float(i+3), key=f"x{i}")
-    y = st.sidebar.number_input(f"Obstacle {i+1} Y", value=float(i+4), key=f"y{i}")
-    obstacles.append(np.array([x, y]))
+st.subheader("Click on map to add obstacles")
 
-# Obstacle radius (smaller)
-OBSTACLE_RADIUS = 0.6  # reduce from 1.2 to 0.6
+# Plot interactive map
+fig = go.Figure()
 
-# Show Reference Graph
-st.subheader("Reference Map (Obstacles & Goal)")
-fig_ref, ax_ref = plt.subplots(figsize=(6,6))
+for obs in st.session_state.obstacles:
+    fig.add_trace(go.Scatter(
+        x=[obs[0]],
+        y=[obs[1]],
+        mode="markers",
+        marker=dict(size=12,color="orange"),
+        name="Obstacle"
+    ))
 
-# Plot obstacles
-for obs in obstacles:
-    circle = plt.Circle(obs, OBSTACLE_RADIUS, color="orange", alpha=0.3)
-    ax_ref.add_patch(circle)
-    ax_ref.scatter(obs[0], obs[1], marker='x', s=100, color="black")
+fig.add_trace(go.Scatter(
+    x=[goal[0]],
+    y=[goal[1]],
+    mode="markers",
+    marker=dict(size=18,color="green"),
+    name="Goal"
+))
 
-# Plot goal
-ax_ref.scatter(goal[0], goal[1], marker='*', s=300, color="green", label="Goal")
+fig.update_layout(
+    xaxis=dict(range=[-1,12]),
+    yaxis=dict(range=[-1,12]),
+    height=500,
+    title="Click anywhere to place obstacle"
+)
 
-ax_ref.set_xlim(-1,12)
-ax_ref.set_ylim(-1,12)
-ax_ref.grid(True)
-ax_ref.set_title("Reference Map")
-ax_ref.legend()
-st.pyplot(fig_ref)
+# Capture click
+selected = plotly_events(fig, click_event=True)
 
-# Start robot button
-if st.button("🚀 Start Robot"):
+if selected:
+    x = selected[0]["x"]
+    y = selected[0]["y"]
+    st.session_state.obstacles.append([x,y])
+    st.rerun()
 
-    start = np.array([0.0, 0.0])
-    robot = start.copy()
-    path_x = [robot[0]]
-    path_y = [robot[1]]
+col1,col2 = st.columns(2)
 
-    plot_area = st.empty()
-    step = 0
+with col1:
+    if st.button("🚀 Start Robot"):
 
-    while np.linalg.norm(robot - goal) > 0.3:
-        step += 1
+        robot = start.copy()
+        path_x=[robot[0]]
+        path_y=[robot[1]]
 
-        # Attractive force to goal
-        goal_force = goal - robot
-        goal_force = goal_force / np.linalg.norm(goal_force)
+        plot_area = st.empty()
 
-        # Repulsive force from obstacles
-        repulsive = np.array([0.0, 0.0])
-        for obs in obstacles:
-            dist = np.linalg.norm(robot - obs)
-            if dist < 2.5:
-                direction = robot - obs
-                direction = direction / np.linalg.norm(direction)
-                repulsive += direction * (1 / dist)
+        while np.linalg.norm(robot-goal) > 0.3:
 
-        # Total movement
-        move = goal_force + repulsive
-        move = move / np.linalg.norm(move)
-        robot += move * 0.4
+            goal_force = goal - robot
+            goal_force = goal_force / np.linalg.norm(goal_force)
 
-        path_x.append(robot[0])
-        path_y.append(robot[1])
+            repulsive = np.array([0.0,0.0])
 
-        # Plotting
-        fig, ax = plt.subplots(figsize=(6,6))
-        ax.plot(path_x, path_y, label="Robot Path", color="blue", linewidth=2)
-        ax.scatter(robot[0], robot[1], s=120, color="red", label="Robot")
-        ax.scatter(goal[0], goal[1], marker='*', s=300, color="green", label="Goal")
+            for obs in st.session_state.obstacles:
 
-        for obs in obstacles:
-            circle = plt.Circle(obs, OBSTACLE_RADIUS, color="orange", alpha=0.3)
-            ax.add_patch(circle)
-            ax.scatter(obs[0], obs[1], marker='x', s=100, color="black")
+                obs = np.array(obs)
+                dist = np.linalg.norm(robot-obs)
 
-        ax.set_xlim(-1, 12)
-        ax.set_ylim(-1, 12)
-        ax.set_title(f"Step {step} | Distance to Goal: {np.linalg.norm(robot-goal):.2f}")
-        ax.grid(True)
-        ax.legend()
+                if dist < 2:
+                    direction = robot - obs
+                    direction = direction / np.linalg.norm(direction)
+                    repulsive += direction*(1/dist)
 
-        plot_area.pyplot(fig)
-        time.sleep(0.2)
+            move = goal_force + repulsive
+            move = move / np.linalg.norm(move)
 
-    st.success("🎯 Goal Reached!")
+            robot += move*0.4
+
+            path_x.append(robot[0])
+            path_y.append(robot[1])
+
+            fig2,ax = plt.subplots(figsize=(6,6))
+
+            ax.plot(path_x,path_y)
+
+            ax.scatter(robot[0],robot[1],s=120,color="red",label="Robot")
+
+            ax.scatter(goal[0],goal[1],marker='*',s=250,color="green",label="Goal")
+
+            for obs in st.session_state.obstacles:
+                circle = plt.Circle(obs,0.5,alpha=0.3,color="orange")
+                ax.add_patch(circle)
+
+            ax.set_xlim(-1,12)
+            ax.set_ylim(-1,12)
+            ax.grid()
+
+            plot_area.pyplot(fig2)
+
+            time.sleep(0.2)
+
+        st.success("Goal Reached 🎯")
+
+with col2:
+    if st.button("🗑 Clear Obstacles"):
+        st.session_state.obstacles=[]
+        st.rerun()
