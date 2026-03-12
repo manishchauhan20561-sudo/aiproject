@@ -31,18 +31,18 @@ for i in range(num_obs):
 
     obstacles.append(np.array([x,y]))
 
-# Obstacle size
+# Obstacle radius
 OBSTACLE_RADIUS = 0.6
 
 # -----------------------------
 # REFERENCE MAP
 # -----------------------------
 
-st.subheader("Reference Map (Environment)")
+st.subheader("Reference Map")
 
 fig_ref, ax_ref = plt.subplots(figsize=(6,6))
 
-# Plot obstacles
+# Obstacles
 for obs in obstacles:
 
     circle = plt.Circle(obs, OBSTACLE_RADIUS, color="orange", alpha=0.3)
@@ -50,30 +50,28 @@ for obs in obstacles:
 
     ax_ref.scatter(obs[0], obs[1], marker='x', s=100, color="black")
 
-# Plot goal
+# Goal
 ax_ref.scatter(goal[0], goal[1], marker='*', s=300, color="green", label="Goal")
 
-# Plot start
+# Start
 ax_ref.scatter(0,0,color="red",s=120,label="Start")
 
 ax_ref.set_xlim(-1,12)
 ax_ref.set_ylim(-1,12)
 
 ax_ref.grid(True)
-ax_ref.set_title("Reference Map")
-
+ax_ref.set_title("Environment Map")
 ax_ref.legend()
 
 st.pyplot(fig_ref)
 
 # -----------------------------
-# START ROBOT BUTTON
+# START ROBOT
 # -----------------------------
 
 if st.button("🚀 Start Robot"):
 
     start = np.array([0.0,0.0])
-
     robot = start.copy()
 
     path_x = [robot[0]]
@@ -82,6 +80,9 @@ if st.button("🚀 Start Robot"):
     plot_area = st.empty()
 
     step = 0
+
+    prev_robot = robot.copy()
+    stuck_counter = 0
 
     while np.linalg.norm(robot-goal) > 0.3:
 
@@ -103,14 +104,25 @@ if st.button("🚀 Start Robot"):
                 direction = robot - obs
                 direction = direction / np.linalg.norm(direction)
 
-                repulsive += direction * (1/dist)
+                repulsive += direction*(1/dist)
 
-        # Movement direction
         move = goal_force + repulsive
         move = move / np.linalg.norm(move)
 
-        # Move robot slowly
-        robot = robot + move * 0.3
+        robot = robot + move*0.3
+
+        # -------- Local minima fix --------
+        if np.linalg.norm(robot - prev_robot) < 0.01:
+            stuck_counter += 1
+        else:
+            stuck_counter = 0
+
+        if stuck_counter > 4:
+            robot += np.random.uniform(-0.5,0.5,2)
+            stuck_counter = 0
+        # ----------------------------------
+
+        prev_robot = robot.copy()
 
         path_x.append(robot[0])
         path_y.append(robot[1])
@@ -124,7 +136,6 @@ if st.button("🚀 Start Robot"):
 
         ax.scatter(goal[0], goal[1], marker='*', s=300, color="green", label="Goal")
 
-        # Draw obstacles
         for obs in obstacles:
 
             circle = plt.Circle(obs, OBSTACLE_RADIUS, color="orange", alpha=0.3)
@@ -140,7 +151,6 @@ if st.button("🚀 Start Robot"):
         ax.set_title(f"Step {step} | Distance to Goal: {distance:.2f}")
 
         ax.grid(True)
-
         ax.legend()
 
         plot_area.pyplot(fig)
