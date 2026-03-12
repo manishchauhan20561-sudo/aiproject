@@ -71,15 +71,24 @@ if st.button("🚀 Start Robot"):
         repulsive = np.array([0.0, 0.0])
         for obs in obstacles:
             dist = np.linalg.norm(robot - obs)
-            if dist < 3:
+            if dist < 2.5:
                 direction = robot - obs
                 direction = direction / np.linalg.norm(direction)
-                repulsive += direction * (2.0 / dist**2)  # stronger repulsion
+                repulsive += direction * (3.0 / dist**2)  # stronger push
 
         # Total movement
         move = goal_force + repulsive
+
+        # Add small random perturbation to escape local minima
+        noise = np.random.uniform(-0.05, 0.05, size=2)
+        move = move + noise
+
+        # Check if movement is too small (stuck), push toward goal
+        if np.linalg.norm(move) < 0.01:
+            move = goal - robot
+
         move = move / np.linalg.norm(move)
-        robot += move * 0.2  # smaller steps for smoothness
+        robot += move * 0.2  # smooth step
 
         path_x.append(robot[0])
         path_y.append(robot[1])
