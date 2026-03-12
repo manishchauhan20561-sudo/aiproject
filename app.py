@@ -34,6 +34,7 @@ OBSTACLE_RADIUS = 0.6
 # -----------------------------
 # Reference Map
 # -----------------------------
+
 st.subheader("Environment Map")
 
 fig_ref, ax_ref = plt.subplots(figsize=(6,6))
@@ -48,6 +49,7 @@ ax_ref.scatter(0, 0, color="red", s=120, label="Start")
 
 ax_ref.set_xlim(-1, 12)
 ax_ref.set_ylim(-1, 12)
+
 ax_ref.grid(True)
 ax_ref.legend()
 
@@ -56,6 +58,7 @@ st.pyplot(fig_ref)
 # -----------------------------
 # Robot Simulation
 # -----------------------------
+
 if st.button("🚀 Start Robot"):
 
     robot = np.array([0.0, 0.0])
@@ -67,29 +70,31 @@ if st.button("🚀 Start Robot"):
 
     step = 0
 
-    while np.linalg.norm(robot - goal) > 0.3:
+    while np.linalg.norm(robot - goal) > 0.3 and step < 400:
 
         step += 1
 
-        # Attractive force toward goal (slightly stronger)
+        # Attractive force toward goal
         goal_force = goal - robot
         goal_force = 1.2 * (goal_force / np.linalg.norm(goal_force))
 
-        # Repulsive force from obstacles (weaker)
         repulsive = np.array([0.0, 0.0])
 
         for obs in obstacles:
 
             dist = np.linalg.norm(robot - obs)
 
-            if dist < 2.0:   # smaller influence distance
+            direction = robot - obs
+            direction = direction / np.linalg.norm(direction)
 
-                direction = robot - obs
-                direction = direction / np.linalg.norm(direction)
+            # STRONG SAFETY FORCE if robot gets too close
+            if dist < OBSTACLE_RADIUS + 0.3:
+                repulsive += direction * 3.0
 
-                repulsive += direction * (0.3 / (dist**2))
+            # NORMAL WEAK REPULSION
+            elif dist < 2.0:
+                repulsive += direction * (0.25 / (dist**2))
 
-        # Total movement
         move = goal_force + repulsive
         move = move / np.linalg.norm(move)
 
@@ -115,7 +120,9 @@ if st.button("🚀 Start Robot"):
         ax.set_xlim(-1, 12)
         ax.set_ylim(-1, 12)
 
-        ax.set_title(f"Step {step} | Distance: {np.linalg.norm(robot-goal):.2f}")
+        distance = np.linalg.norm(robot - goal)
+
+        ax.set_title(f"Step {step} | Distance: {distance:.2f}")
 
         ax.grid(True)
         ax.legend()
