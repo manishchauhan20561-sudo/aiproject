@@ -1,108 +1,50 @@
 import streamlit as st
 import numpy as np
-import plotly.graph_objects as go
 
-st.title("Autonomous Robot Navigation AI Project")
+st.title("Autonomous Robot Navigation")
 
-start = np.array([0.0,0.0])
-goal = np.array([10.0,10.0])
+# Number of obstacles
+num_obstacles = st.slider("Select number of obstacles", 1, 6, 3)
 
-if "obstacles" not in st.session_state:
-    st.session_state.obstacles=[]
+obstacles = []
 
-st.subheader("Add Obstacle")
+st.write("Enter obstacle coordinates")
 
-col1,col2=st.columns(2)
+# Input obstacle coordinates
+for i in range(num_obstacles):
 
-x=col1.number_input("Obstacle X",0.0,10.0,0.0)
-y=col2.number_input("Obstacle Y",0.0,10.0,0.0)
+    col1, col2 = st.columns(2)
 
-if st.button("Add Obstacle"):
-    st.session_state.obstacles.append([x,y])
+    x = col1.number_input(f"Obstacle {i+1} X", 0, 10, key=f"x{i}")
+    y = col2.number_input(f"Obstacle {i+1} Y", 0, 10, key=f"y{i}")
 
-if st.button("Clear Obstacles"):
-    st.session_state.obstacles=[]
+    obstacles.append(np.array([x, y]))
 
-fig=go.Figure()
+# Start robot button
+start_robot = st.button("Start Robot")
 
-fig.add_trace(go.Scatter(
-    x=[start[0]],
-    y=[start[1]],
-    mode="markers",
-    marker=dict(size=12,color="blue"),
-    name="Start"
-))
+if start_robot:
 
-fig.add_trace(go.Scatter(
-    x=[goal[0]],
-    y=[goal[1]],
-    mode="markers",
-    marker=dict(size=15,symbol="star",color="green"),
-    name="Goal"
-))
+    st.success("Robot Started")
 
-if st.session_state.obstacles:
+    start = np.array([0, 0])
+    goal = np.array([10, 10])
 
-    ox=[o[0] for o in st.session_state.obstacles]
-    oy=[o[1] for o in st.session_state.obstacles]
+    st.write("Start Position:", start)
+    st.write("Goal Position:", goal)
 
-    fig.add_trace(go.Scatter(
-        x=ox,
-        y=oy,
-        mode="markers",
-        marker=dict(size=12,symbol="x",color="red"),
-        name="Obstacles"
-    ))
+    st.write("Obstacles:", obstacles)
 
-fig.update_layout(
-    xaxis=dict(range=[-1,12]),
-    yaxis=dict(range=[-1,12]),
-    height=500
-)
+    # Example robot movement logic
+    position = start.copy()
 
-st.plotly_chart(fig)
+    while np.linalg.norm(goal - position) > 0.5:
 
-if st.button("Start Robot"):
+        direction = goal - position
+        direction = direction / np.linalg.norm(direction)
 
-    robot=start.copy()
+        position = position + direction
 
-    path_x=[robot[0]]
-    path_y=[robot[1]]
+        st.write("Robot Position:", position)
 
-    for i in range(200):
-
-        goal_force=goal-robot
-        goal_force=goal_force/np.linalg.norm(goal_force)
-
-        repulsive=np.array([0.0,0.0])
-
-        for obs in st.session_state.obstacles:
-
-            obs=np.array(obs)
-            dist=np.linalg.norm(robot-obs)
-
-            if dist<2:
-                direction=robot-obs
-                direction=direction/np.linalg.norm(direction)
-                repulsive+=direction*(1/dist)
-
-        move=goal_force+repulsive
-        move=move/np.linalg.norm(move)
-
-        robot=robot+move*0.4
-
-        path_x.append(robot[0])
-        path_y.append(robot[1])
-
-        if np.linalg.norm(robot-goal)<0.3:
-            break
-
-    fig.add_trace(go.Scatter(
-        x=path_x,
-        y=path_y,
-        mode="lines",
-        line=dict(color="blue"),
-        name="Robot Path"
-    ))
-
-    st.plotly_chart(fig)
+    st.success("Robot Reached Goal!")
